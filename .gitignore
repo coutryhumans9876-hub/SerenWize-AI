@@ -1,0 +1,27 @@
+﻿.venv/
+.venv_*/
+venv/
+__pycache__/
+*.py[cod]
+
+.streamlit/secrets.toml
+.env
+
+# Personal and test data
+data/raw/
+data/processed/
+data/*.json
+*.wav
+*.mp3
+*.m4a
+*.flac
+*.ogg
+
+# Backup files
+*_backup.py
+app.py_before_*.py
+app_before_*.py
+app_truoc_*.py
+
+# Temporary and test files
+test_*.py
