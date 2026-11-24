@@ -25,3 +25,4 @@ app_truoc_*.py
 
 # Temporary and test files
 test_*.py
+module.zip
