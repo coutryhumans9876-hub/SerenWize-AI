@@ -2,6 +2,7 @@
 SerenWize-AI - Phòng luyện tập nhiều bài (hô hấp, neo giác quan, quét cơ thể, thả lỏng cơ)
 Đặt file này vào modules/practice.py
 """
+import streamlit as st
 import streamlit.components.v1 as components
 
 HTML = r"""
@@ -236,5 +237,66 @@ selectEx("calm");
 """
 
 
-def breathing_studio(height=900):
-    components.html(HTML, height=height, scrolling=False)
+EXERCISE_NAMES = {
+    "calm": "Thở nhịp nhàng 4-4",
+    "long": "Thở ra dài 4-6",
+    "box": "Thở hộp 4-4-4-4",
+    "ground": "Neo giác quan 5-4-3-2-1",
+    "scan": "Quét cơ thể",
+    "pmr": "Siết và thả lỏng cơ",
+}
+
+# Cảm xúc (từ phân tích văn bản) -> (mã bài, lý do gợi ý)
+RECOMMENDATIONS = {
+    "Lo lắng": ("long", "thở ra dài giúp cơ thể chậm lại khi đầu óc đang lo nghĩ."),
+    "Căng thẳng": ("pmr", "siết rồi thả lỏng từng nhóm cơ giúp giải tỏa sự căng cứng trong người."),
+    "Tức giận": ("calm", "nhịp thở đều 4-4 giúp bạn bình tĩnh lại nhanh."),
+    "Buồn bã": ("scan", "quét cơ thể nhẹ nhàng giúp bạn quay về với hiện tại, không cần cố gắng."),
+    "Vui vẻ": ("box", "thở hộp giúp duy trì sự tập trung và giữ trạng thái tích cực."),
+}
+
+
+def recommend_exercise(emotion):
+    """Trả về dict {id, name, reason} cho cảm xúc, hoặc None nếu chưa xác định."""
+    if emotion not in RECOMMENDATIONS:
+        return None
+    ex_id, reason = RECOMMENDATIONS[emotion]
+    return {"id": ex_id, "name": EXERCISE_NAMES[ex_id], "reason": reason}
+
+
+def _open_practice():
+    st.session_state["menu"] = "Phòng luyện tập"
+
+
+def practice_cta(emotion, key):
+    """Khối gợi ý + nút chuyển sang Phòng luyện tập, đặt ngay dưới kết quả phân tích."""
+    rec = recommend_exercise(emotion)
+    if not rec:
+        return
+    from html import escape
+    st.html(
+        '<div class="tip-box"><div class="tip-ico">🌬️</div><div>'
+        '<div class="tip-title">Thử luyện tập ngay</div>'
+        f'<div class="tip-text">Bài gợi ý: <b>{escape(rec["name"])}</b> – {escape(rec["reason"])}</div>'
+        '</div></div>'
+    )
+    st.button("Mở Phòng luyện tập  →", key=key, on_click=_open_practice, use_container_width=True)
+
+
+def breathing_studio(height=900, default_id="calm"):
+    ex_id = default_id if default_id in EXERCISE_NAMES else "calm"
+    html = HTML
+    a = 'const EX = ['
+    assert a in html
+    html = html.replace(a, f'const REC = "{ex_id}";\n' + a, 1)
+    b = 'e.tag + "</div></button>"'
+    assert b in html
+    html = html.replace(
+        b,
+        'e.tag + "</div>" + (e.id === REC ? \'<div class="tg" style="color:#6747BD;font-weight:700">★ Gợi ý cho bạn</div>\' : "") + "</button>"',
+        1,
+    )
+    c = 'selectEx("calm");\n</script>'
+    assert c in html
+    html = html.replace(c, f'selectEx("{ex_id}");\n</script>', 1)
+    components.html(html, height=height, scrolling=False)

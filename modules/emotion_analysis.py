@@ -56,11 +56,16 @@ def combine_analysis(text_result, voice_result):
     return {
         "success": True,
 
-        "text_analysis": {
+                "text_analysis": {
             "primary_emotion": text_emotion,
             "emotions": text_emotions,
             "keywords": keywords,
-            "suggestion": suggestion
+            "suggestion": suggestion,
+            "intensity": text_result.get("intensity"),
+            "confidence": text_result.get("confidence"),
+            "topics": text_result.get("topics", []),
+            "distribution": text_result.get("distribution", {}),
+            "crisis": text_result.get("crisis")
         },
 
         "voice_analysis": {

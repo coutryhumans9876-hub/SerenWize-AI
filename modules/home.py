@@ -4,6 +4,7 @@ SerenWize-AI - Trang chủ dạng dashboard (lavender / tím pastel)
 """
 from html import escape
 import streamlit as st
+from modules.theme import icon_img
 
 CSS = """
 <style>
@@ -94,15 +95,43 @@ CSS = """
     .hm-chip-b { right: 0; }
 }
 @media (prefers-reduced-motion: reduce) { .hm-orb { animation: none; } }
+
+.hm-brand { font-size: clamp(38px, 5vw, 58px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.1;
+    background: linear-gradient(90deg, #6747BD, #A78BF0); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hm-tag { color: var(--lav-700); font-size: clamp(18px, 2.2vw, 24px); font-weight: 700; line-height: 1.4; margin: 10px 0 12px; }
+.hm-art { width: 270px; max-width: 100%; animation: hm-breathe 8s ease-in-out infinite; filter: drop-shadow(0 26px 30px rgba(103,71,189,0.28)); }
+.hm-icon { background: var(--lav-100); }
+.hm-icon svg { width: 24px; height: 24px; stroke: var(--lav-700); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.hm-quote { text-align: center; color: var(--lav-700); font-style: italic; font-size: 14px; margin: 18px 0 6px; }
 </style>
 """
 
 FEATURES = [
-    ("💬", "Phân tích văn bản", "Khám phá cảm xúc qua nội dung bạn chia sẻ.", "Phân tích văn bản"),
-    ("🎙️", "Phân tích giọng nói", "Ước lượng tín hiệu cảm xúc từ giọng nói.", "Phân tích giọng nói"),
-    ("📊", "Báo cáo tâm lý", "Xem lại kết quả và những thay đổi cảm xúc.", "Báo cáo tâm lý"),
-    ("🌱", "Phòng luyện tập", "Thở chậm và thư giãn cùng quả cầu hô hấp.", "Phòng luyện tập"),
+    ("mic", "Phân tích giọng nói", "Ước lượng tín hiệu cảm xúc từ giọng nói.", "Phân tích giọng nói"),
+    ("text", "Phân tích văn bản", "Khám phá cảm xúc qua nội dung bạn chia sẻ.", "Phân tích văn bản"),
+    ("heart", "Gợi ý chăm sóc", "Hoạt động nhẹ nhàng phù hợp tâm trạng.", "Gợi ý chăm sóc"),
+    ("chart", "Theo dõi tâm lý", "Xem lại kết quả và những thay đổi cảm xúc.", "Báo cáo tâm lý"),
 ]
+
+_ART_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">'
+    '<defs><linearGradient id="hg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#CDBBFB"/>'
+    '<stop offset="1" stop-color="#7F60D8"/></linearGradient>'
+    '<radialGradient id="gl"><stop offset="0" stop-color="#fff" stop-opacity=".95"/>'
+    '<stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>'
+    '<circle cx="120" cy="124" r="112" fill="url(#gl)"/>'
+    '<path d="M120 200C38 142 34 86 74 72c24-8 40 6 46 20 6-14 22-28 46-20 40 14 36 70-46 128z" fill="url(#hg)"/>'
+    '<path d="M60 122C60 50 180 50 180 122" fill="none" stroke="#5B3FB0" stroke-width="9" stroke-linecap="round"/>'
+    '<rect x="48" y="110" width="26" height="46" rx="13" fill="#7F60D8"/>'
+    '<rect x="166" y="110" width="26" height="46" rx="13" fill="#7F60D8"/>'
+    '<path d="M186 40l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" fill="#C9B6FA"/>'
+    '<path d="M44 58l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" fill="#C9B6FA"/></svg>'
+)
+
+
+from urllib.parse import quote as _q
+
+ART = '<img class="hm-art" alt="" src="data:image/svg+xml,' + _q(_ART_SVG, safe="/=:.,'-") + '">'
 
 
 def _go(page):
@@ -139,22 +168,23 @@ def home_dashboard():
     st.html(
         '<div class="hm-hero">'
         '<div>'
-        '<div class="hm-hello">Xin chào 👋</div>'
-        '<div class="hm-title">Hôm nay bạn đang <b>cảm thấy</b> thế nào?</div>'
-        '<div class="hm-desc">SerenWize-AI đồng hành cùng bạn khám phá cảm xúc qua ngôn ngữ '
-        'và giọng nói, rồi gợi ý những cách chăm sóc bản thân phù hợp.</div>'
+        '<div class="hm-brand">SerenWize-AI</div>'
+        '<div class="hm-tag">Lắng nghe cảm xúc – Thấu hiểu tâm lý – Đồng hành cùng bạn</div>'
+        '<div class="hm-desc">Nền tảng hỗ trợ sức khỏe tinh thần cho học sinh thông qua phân tích giọng nói '
+        'và văn bản, giúp bạn hiểu rõ cảm xúc, giảm căng thẳng và tìm lại sự cân bằng.</div>'
         '</div>'
-        '<div class="hm-orb-wrap"><div class="hm-orb"></div>'
+        f'<div class="hm-orb-wrap">{ART}'
         f'<div class="hm-chip hm-chip-a"><span>Từ văn bản</span><b>{_text_emotion()}</b></div>'
         f'<div class="hm-chip hm-chip-b"><span>Từ giọng nói</span><b>{_voice_emotion()}</b></div>'
         '</div></div>'
     )
+    st.button("Bắt đầu ngay  →", key="home_start", on_click=_go, args=("Phân tích văn bản",))
 
     cols = st.columns(4, gap="medium")
     for col, (icon, title, desc, page) in zip(cols, FEATURES):
         with col:
             st.html(
-                f'<div class="hm-card"><div class="hm-icon">{icon}</div>'
+                f'<div class="hm-card"><div class="hm-icon">{icon_img(icon, "#6747BD", 24)}</div>'
                 f'<div class="hm-card-title">{title}</div>'
                 f'<div class="hm-card-desc">{desc}</div></div>'
             )
@@ -180,3 +210,4 @@ def home_dashboard():
             'Nếu bạn đang thấy quá tải, hãy trò chuyện với người bạn tin tưởng '
             'hoặc chuyên gia tâm lý.</div>'
         )
+    st.html('<div class="hm-quote">“Understand Emotions. Empower Minds.”</div>')

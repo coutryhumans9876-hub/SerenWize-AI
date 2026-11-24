@@ -7,12 +7,16 @@ import subprocess
 from modules.text_analysis import analyze_text
 from modules.voice_analysis import analyze_audio
 from modules.emotion_analysis import combine_analysis
+from modules.emotion_fusion import fuse
 from modules.voice_emotion import analyze_voice_emotion
 from modules.voice_baseline import create_baseline, load_baseline
 from modules.voice_comparison import compare_voice
-from modules.theme import apply_theme, sidebar_brand
+from modules.theme import (
+    apply_theme, sidebar_brand, page_header, sidebar_footer,
+    emotion_pill, chips, tip_box, empty_state,
+)
 from modules.home import home_dashboard
-from modules.practice import breathing_studio
+from modules.practice import breathing_studio, recommend_exercise, practice_cta
 from modules.recovery_history import (
     save_recovery_session,
     load_recovery_history
@@ -77,8 +81,7 @@ with st.sidebar:
         ],
         key="menu"
     )
-    st.divider()
-    st.caption("Phiên bản thử nghiệm 1.0")
+    sidebar_footer("Phiên bản thử nghiệm 1.0")
 
 
 # ==========================================
@@ -89,6 +92,7 @@ with st.sidebar:
 
 if menu == "Trang chủ":
 
+    page_header("home", "Trang chủ")
     home_dashboard()
 
 
@@ -100,61 +104,65 @@ if menu == "Trang chủ":
 
 elif menu == "Phân tích văn bản":
 
-    st.title("Phân tích cảm xúc qua văn bản")
+    page_header("text", "Phân tích văn bản")
 
-    st.write(
-        "Hãy chia sẻ suy nghĩ hoặc cảm xúc của bạn "
-        "trong khoảng thời gian gần đây."
-    )
+    left, right = st.columns([1.05, 0.95], gap="large")
 
-    content = st.text_area(
-        "Nội dung chia sẻ",
-        height=200,
-        placeholder="Hôm nay mình cảm thấy..."
-    )
+    with left:
+        with st.container(key="card_text_input"):
+            st.markdown("#### 📝 Nhập nội dung cần phân tích")
+            st.caption("Hãy chia sẻ suy nghĩ hoặc cảm xúc của bạn trong khoảng thời gian gần đây.")
+            content = st.text_area(
+                "Nội dung chia sẻ",
+                height=220,
+                max_chars=1000,
+                placeholder="Ví dụ: Tôi đang rất lo lắng vì bài kiểm tra sắp tới...",
+                label_visibility="collapsed",
+            )
+            run = st.button("Phân tích văn bản", use_container_width=True, key="btn_text_run")
 
-    if st.button("Phân tích cảm xúc"):
-
+    empty_warn = False
+    if run:
         if content.strip():
-
             result = analyze_text(content)
             st.session_state.text_result = result
             st.session_state.combined_result = combine_analysis(
-    st.session_state.text_result,
-    st.session_state.voice_result
-)
-
-            st.success("Đã hoàn thành phân tích!")
-
-            st.subheader("Kết quả phân tích")
-
-            st.markdown(
-                f"### 💜 Cảm xúc chính: {result['emotion']}"
+                st.session_state.text_result,
+                st.session_state.voice_result
             )
-
-            if result["emotions"]:
-                st.write("**Các cảm xúc được nhận diện:**")
-                st.write(", ".join(result["emotions"]))
-
-            if result["keywords"]:
-                st.write("**Từ khóa nhận diện:**")
-                st.write(", ".join(result["keywords"]))
-
-            if result["negated_keywords"]:
-                st.write("**Từ khóa trong ngữ cảnh phủ định:**")
-                st.write(", ".join(result["negated_keywords"]))
-
-            st.info(result["suggestion"])
-
-            st.caption(result["message"])
-
-            st.warning(
-                "Kết quả dựa trên bộ từ khóa thử nghiệm, "
-                "không phải chẩn đoán tâm lý."
-            )
-
         else:
-            st.warning("Bạn hãy nhập nội dung trước nhé!")
+            empty_warn = True
+
+    with right:
+        with st.container(key="card_text_result"):
+            st.markdown("#### Kết quả phân tích")
+            result = st.session_state.text_result
+            if empty_warn:
+                st.warning("Bạn hãy nhập nội dung trước nhé!")
+            elif result:
+                emotion_pill(result["emotion"])
+
+                if result["emotions"]:
+                    st.markdown("**Các cảm xúc được nhận diện**")
+                    chips(result["emotions"])
+
+                if result["keywords"]:
+                    st.markdown("**Từ khóa nổi bật**")
+                    chips(result["keywords"])
+
+                if result["negated_keywords"]:
+                    st.markdown("**Từ khóa trong ngữ cảnh phủ định**")
+                    chips(result["negated_keywords"], "muted")
+
+                tip_box("Gợi ý cho bạn", result["suggestion"])
+                practice_cta(result["emotion"], "cta_text_practice")
+                st.caption(result["message"])
+                st.caption(
+                    "Kết quả dựa trên bộ từ khóa thử nghiệm, "
+                    "không phải chẩn đoán tâm lý."
+                )
+            else:
+                empty_state("Nhập nội dung ở bên trái rồi bấm “Phân tích văn bản” để xem kết quả.")
 
 
 # ==========================================
@@ -169,7 +177,7 @@ elif menu == "Phân tích văn bản":
 
 elif menu == "Phân tích giọng nói":
 
-    st.title("Phân tích giọng nói và cảm xúc")
+    page_header("mic", "Phân tích giọng nói")
 
     st.write(
         "Tải lên một tệp ghi âm tiếng Việt để SerenWize-AI "
@@ -186,6 +194,13 @@ elif menu == "Phân tích giọng nói":
 
         st.audio(audio)
         st.success("Đã tiếp nhận tệp ghi âm.")
+
+        transcript = st.text_area(
+            "Nội dung lời nói (tùy chọn)",
+            height=110,
+            placeholder="Gõ lại nội dung bạn nói trong bản ghi để đối chiếu giữa lời nói và giọng điệu...",
+            help="Nếu nhập, SerenWize-AI sẽ so sánh cảm xúc trong nội dung với cảm xúc trong giọng nói.",
+        )
 
         if st.button("Bắt đầu phân tích giọng nói"):
 
@@ -233,6 +248,7 @@ elif menu == "Phân tích giọng nói":
                     voice_result = analyze_audio(temp_wav_path)
 
                 st.session_state.voice_result = voice_result
+                comparison_result = None
 
                 # Gửi âm thanh đến MERaLiON
                 with st.spinner("MERaLiON đang nhận diện cảm xúc..."):
@@ -484,6 +500,33 @@ elif menu == "Phân tích giọng nói":
                         "về mức độ căng thẳng."
                     )
 
+                    # ---- 4. Đối chiếu giọng điệu + nội dung + giọng gốc ----
+                    st.divider()
+                    st.subheader("4. Ước lượng tổng hợp")
+                    transcript_result = analyze_text(transcript) if transcript.strip() else None
+                    fusion = fuse(emotion_result, transcript_result, comparison_result)
+
+                    if fusion.get("success"):
+                        st.session_state.fusion_result = fusion
+                        emotion_pill(fusion["emotion"])
+                        st.markdown(
+                            f"**Mức chắc chắn:** {fusion['confidence_level']}  ·  "
+                            f"**Nguồn đã dùng:** {', '.join(fusion['sources'])}"
+                        )
+                        st.bar_chart(
+                            pd.DataFrame({"Điểm": fusion["scores"]})
+                        )
+                        for line in fusion["explanations"]:
+                            st.markdown(f"- {line}")
+                        if not transcript.strip():
+                            st.caption("Gợi ý: nhập nội dung lời nói ở phía trên để đối chiếu thêm với nội dung.")
+                        if comparison_result is None or not comparison_result.get("success"):
+                            st.caption("Gợi ý: tạo hồ sơ giọng nói cá nhân để so sánh với giọng bình thường của bạn.")
+                        tip_box("Lưu ý", fusion["limitation"], icon="💡")
+                        practice_cta(fusion["emotion"], "cta_voice_practice")
+                    else:
+                        st.info(fusion.get("error", "Chưa đủ dữ liệu để ước lượng tổng hợp."))
+
                 else:
                     st.warning(
                         "Chưa nhận diện được cảm xúc từ giọng nói."
@@ -520,7 +563,7 @@ elif menu == "Phân tích giọng nói":
 
 elif menu == "Hồ sơ giọng nói cá nhân":
 
-    st.title("Hồ sơ giọng nói cá nhân")
+    page_header("user", "Hồ sơ giọng nói cá nhân")
 
     st.write(
         "Tạo hồ sơ giọng nói bình thường để SerenWize-AI "
@@ -986,7 +1029,7 @@ elif menu == "Báo cáo tâm lý":
         )
 
 
-    st.title("Báo cáo và theo dõi cảm xúc")
+    page_header("chart", "Báo cáo tâm lý")
 
     st.write(
         "Báo cáo tổng hợp kết quả phân tích văn bản, "
@@ -1397,7 +1440,7 @@ elif menu == "Báo cáo tâm lý":
 
 elif menu == "Gợi ý chăm sóc":
 
-    st.title("Chăm sóc và phục hồi cảm xúc")
+    page_header("heart", "Gợi ý chăm sóc")
 
     st.write(
         "SerenWize-AI muốn hiểu cảm xúc và nhu cầu của bạn "
@@ -1556,7 +1599,11 @@ elif menu == "Gợi ý chăm sóc":
                 "Bạn không cần phải đối mặt với mọi chuyện một mình."
             )
 
-        st.info()
+        st.info(
+            "Gợi ý trên mang tính hỗ trợ tự chăm sóc, không thay thế "
+            "tư vấn của chuyên gia tâm lý. Nếu cảm thấy quá tải, hãy "
+            "chia sẻ với người bạn tin tưởng."
+        )
      
     # Đánh giá sau hoạt động
     if (
@@ -1590,7 +1637,7 @@ elif menu == "Gợi ý chăm sóc":
             key="recovery_feedback"
         )
 
-        if st.button("Lưu kết quả phục hồi", use_container_width=True):
+        if st.button("Lưu kết quả phục hồi", use_container_width=True, key="btn_save_recovery"):
             session = st.session_state.recovery_session
 
             if session.get("saved"):
@@ -1612,26 +1659,6 @@ elif menu == "Gợi ý chăm sóc":
                     st.error(f"Không thể lưu: {result['error']}")
 
 
-    if st.button("Lưu kết quả phục hồi", use_container_width=True):
-        session = st.session_state.recovery_session
-
-        if session.get("saved"):
-            st.info("Kết quả này đã được lưu rồi.")
-        else:
-            result = save_recovery_session(
-                feeling=session["feeling"],
-                intensity_before=session["intensity_before"],
-                need=session["need"],
-                activity=session["activity"],
-                intensity_after=intensity_after,
-                feedback=feedback
-            )
-
-            if result["success"]:
-                session["saved"] = True
-                st.success("Đã lưu kết quả phục hồi thành công!")
-            else:
-                st.error(f"Không thể lưu: {result['error']}")
     
 
         
@@ -1645,7 +1672,7 @@ elif menu == "Gợi ý chăm sóc":
 
 elif menu == "Phòng luyện tập":
 
-    st.title("SerenWize Breathing Studio")
+    page_header("wind", "Phòng luyện tập")
 
     st.write(
         "Không gian luyện tập hô hấp và thư giãn "
@@ -1664,7 +1691,15 @@ elif menu == "Phòng luyện tập":
         "hướng dẫn trên màn hình."
     )
 
-    breathing_studio()
+    _tr = st.session_state.get("fusion_result") or st.session_state.get("text_result")
+    _emo = _tr.get("emotion") if isinstance(_tr, dict) else None
+    _rec = recommend_exercise(_emo)
+    if _rec:
+        st.success(
+            f"Dựa trên kết quả phân tích gần nhất (**{_emo}**), SerenWize gợi ý bài "
+            f"**{_rec['name']}**: {_rec['reason']}"
+        )
+    breathing_studio(default_id=_rec["id"] if _rec else "calm")
 
     st.caption(
         "Lưu ý: Hãy duy trì nhịp thở thoải mái, "
@@ -1681,7 +1716,7 @@ elif menu == "Phòng luyện tập":
 
 elif menu == "Giới thiệu dự án":
 
-    st.title("Giới thiệu SerenWize-AI")
+    page_header("info", "Giới thiệu dự án")
 
     st.write("""
     **SerenWize-AI** là dự án hướng tới xây dựng
