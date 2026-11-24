@@ -293,28 +293,47 @@ EMOTION_SUGGESTIONS = {
 # ==========================================
 
 NEGATION_WORDS = [
-    "không", "chẳng", "chưa", "đâu có",
-    "không hề", "chẳng hề", "không còn",
-    "chẳng còn"
+    "không hề", "chẳng hề", "không còn", "chẳng còn",
+    "không phải", "đâu có", "không", "chẳng", "chưa", "chả"
+]
+
+# Từ đệm có thể xen giữa từ phủ định và từ khóa, ví dụ "không thấy buồn", "không quá lo"
+NEGATION_FILLERS = [
+    "quá", "lắm", "thấy", "cảm thấy", "còn", "hề", "mấy",
+    "phải", "là", "có", "được", "bị", "một chút", "chút nào"
+]
+
+# Gợi ý cho trường hợp chỉ có cảm xúc bị phủ định (ví dụ "hôm nay không buồn")
+NEUTRAL_SUGGESTIONS = [
+    "Nghe có vẻ bạn đang ổn, hãy tiếp tục duy trì thói quen ngủ nghỉ và ăn uống đều đặn.",
+    "Thật tốt khi bạn không thấy nặng nề, hãy tận dụng tâm trạng này cho một việc bạn thích.",
+    "Bạn có thể ghi lại điều giúp bạn thấy ổn hôm nay để nhớ lại khi cần.",
+    "Hãy tiếp tục chăm sóc bản thân bằng vận động nhẹ và dành thời gian cho người thân, bạn bè.",
+    "Nếu có điều gì khiến bạn muốn chia sẻ thêm, hãy viết ra để SerenWize-AI hiểu rõ hơn.",
+    "Một vài phút hít thở chậm mỗi ngày giúp giữ tâm trạng ổn định lâu dài.",
+    "Hãy dành vài phút cảm ơn bản thân vì đã chăm sóc tốt cho mình hôm nay.",
+    "Tâm trạng bình ổn là lúc tốt để lên kế hoạch nhỏ cho những ngày tới.",
 ]
 
 
 def is_negated(text, start):
     """
     Kiểm tra từ khóa có đứng sau từ phủ định gần đó không.
+    Cho phép một vài từ đệm giữa từ phủ định và từ khóa
+    (ví dụ: "không thấy buồn", "chẳng còn lo lắng").
     Đây là quy tắc thử nghiệm, chưa hiểu đầy đủ ngữ cảnh.
     """
 
-    prefix = text[max(0, start - 30):start].strip()
+    prefix = text[max(0, start - 40):start].strip()
 
-    for negation in NEGATION_WORDS:
-        if re.search(
-            r"(?<!\w)" + re.escape(negation) + r"\s*$",
-            prefix
-        ):
-            return True
+    negation = "|".join(re.escape(w) for w in NEGATION_WORDS)
+    filler = "|".join(re.escape(w) for w in NEGATION_FILLERS)
+    pattern = (
+        r"(?<!\w)(?:" + negation + r")"
+        r"(?:\s+(?:" + filler + r"))*\s*$"
+    )
 
-    return False
+    return re.search(pattern, prefix) is not None
 
 
 # ==========================================
@@ -345,6 +364,7 @@ def analyze_text(text):
 
     emotion_matches = {}
     negated_keywords = []
+    negated_by_emotion = {}
 
     for emotion, keywords in EMOTION_KEYWORDS.items():
 
@@ -364,6 +384,9 @@ def analyze_text(text):
                 if is_negated(normalized_text, position):
                     if keyword not in negated_keywords:
                         negated_keywords.append(keyword)
+                    negated_by_emotion.setdefault(emotion, [])
+                    if keyword not in negated_by_emotion[emotion]:
+                        negated_by_emotion[emotion].append(keyword)
                 else:
                     if keyword not in matched:
                         matched.append(keyword)
@@ -378,6 +401,45 @@ def analyze_text(text):
         for emotion, keywords in emotion_matches.items()
         if keywords
     ]
+
+    if not detected_emotions and negated_by_emotion:
+        negative_denied = [
+            kw for emo, kws in negated_by_emotion.items()
+            if emo != "Vui vẻ" for kw in kws
+        ]
+        positive_denied = negated_by_emotion.get("Vui vẻ", [])
+
+        # Phủ định cảm xúc tiêu cực ("không buồn", "không buồn cũng không vui") -> bình thường
+        if negative_denied:
+            return {
+                "emotion": "Bình thường",
+                "emotions": [],
+                "keywords": [],
+                "negated_keywords": negated_keywords,
+                "suggestion": random.choice(NEUTRAL_SUGGESTIONS),
+                "message": (
+                    "Bạn cho biết mình không cảm thấy "
+                    + ", ".join(negative_denied)
+                    + ", nên ứng dụng ghi nhận trạng thái bình thường. "
+                    "Nếu chưa đúng, hãy mô tả thêm cảm xúc của bạn."
+                )
+            }
+
+        # Phủ định cảm xúc tích cực ("không vui") -> tâm trạng trầm xuống
+        if positive_denied and not negative_denied:
+            return {
+                "emotion": "Buồn bã",
+                "emotions": ["Buồn bã"],
+                "keywords": [],
+                "negated_keywords": negated_keywords,
+                "suggestion": random.choice(EMOTION_SUGGESTIONS["Buồn bã"]),
+                "message": (
+                    "Bạn cho biết mình không cảm thấy "
+                    + ", ".join(positive_denied)
+                    + ", nên ứng dụng tạm ghi nhận tâm trạng trầm xuống. "
+                    "Kết quả mang tính tham khảo."
+                )
+            }
 
     if not detected_emotions:
         return {
